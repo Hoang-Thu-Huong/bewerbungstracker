@@ -169,9 +169,9 @@ App
 
 | Phần | Nội dung |
 |---|---|
-| **State** | ✏️ *(Ví dụ: `applications`, `isLoading`, `error`, `filter`)* |
-| **Getters** | ✏️ *(Ví dụ: danh sách đã lọc, số hồ sơ theo trạng thái)* |
-| **Actions** | ✏️ *(Ví dụ: `fetchAll`, `create`, `update`, `remove`)* |
+| **State** | `applications` (ref, Array) – load từ `localStorage` key `bewerbungstracker.applications`, fallback seed (`seedApplications.js`). Phase 2: thêm `isLoading`, `error` |
+| **Getters** | ✏️ *(Task sau: danh sách đã lọc, số hồ sơ theo trạng thái)* |
+| **Actions** | `addApplication(data)`, `updateApplication(id, changes)`, `removeApplication(id)`, `getApplicationById(id)` – Phase 2: `fetchAll` gọi REST API |
 
 ### 6.4 TypeScript Types
 
@@ -315,7 +315,10 @@ Vuejs-Projekt/
 
 | Ngày | Quyết định | Lý do | Phương án khác đã cân nhắc |
 |---|---|---|---|
-| ✏️ | | | |
+| 2026-09-25 | Pinia **Setup Store** (`defineStore('applications', () => {...})`) | Cùng mental model với Composition API, dùng được `watch`/composables, dễ lên TypeScript | Options Store `{ state, getters, actions }` |
+| 2026-09-25 | Persist bằng `watch(applications, save, { deep: true })` → `localStorage` | Một chỗ duy nhất lo việc lưu; action không phải nhớ gọi `save()` | Gọi `save()` cuối mỗi action; plugin `pinia-plugin-persistedstate` (không thêm package ở MVP) |
+| 2026-09-25 | `id` là string UUID (`crypto.randomUUID()`), seed dùng `'seed-1'`… | Không cần tính max id, không trùng khi merge với backend, khớp kiểu với route param `:id` | Số tăng dần |
+| 2026-09-25 | `gehaltMin`/`gehaltMax` luôn là Jahresbrutto (€/năm) | So sánh lương giữa các job cần cùng đơn vị | Lưu thêm field `gehaltIntervall` (Monat/Jahr) |
 
 ---
 
