@@ -1,61 +1,62 @@
 <script setup>
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+
 import { useApplicationsStore } from '@/stores/applications'
+import { filterApplications } from '@/utils/filterApplications'
+import FilterBar from '@/components/FilterBar.vue'
+import ApplicationList from '@/components/ApplicationList.vue'
 
 // Die Bewerbungen leben im Pinia-Store (persistiert in localStorage).
 // storeToRefs statt Destructuring, damit `applications` reaktiv bleibt.
 const store = useApplicationsStore()
 const { applications } = storeToRefs(store)
+
+// Filterzustand gehört zur View, nicht in den Store: er ist nur hier relevant
+// und soll nicht persistiert werden.
+const query = ref('')
+const status = ref('alle')
+
+// computed statt Methode: das Ergebnis wird gecacht und nur neu berechnet, wenn
+// applications, query oder status sich ändern – nicht bei jedem Re-Render.
+const filteredApplications = computed(() =>
+  filterApplications(applications.value, { query: query.value, status: status.value }),
+)
 </script>
 
 <template>
   <main>
-    <h1>Meine Bewerbungen</h1>
+    <div class="heading">
+      <h1>Meine Bewerbungen</h1>
+      <p class="count">
+        {{ filteredApplications.length }} von {{ applications.length }} Bewerbungen
+      </p>
+    </div>
 
-    <ul class="application-list">
-      <li v-for="application in applications" :key="application.id" class="application-item">
-        <span class="company">{{ application.company }}</span>
-        <span class="position">{{ application.position }}</span>
-        <span class="status">{{ application.status }}</span>
-      </li>
-    </ul>
+    <FilterBar v-model:query="query" v-model:status="status" />
+
+    <ApplicationList :applications="filteredApplications" />
   </main>
 </template>
 
 <style scoped>
-h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
+.heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
-.application-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.application-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background-color: var(--color-background-soft);
-}
-
-.company {
+h1 {
+  font-size: 1.5rem;
   font-weight: 600;
   color: var(--color-heading);
 }
 
-.status {
+.count {
   font-size: 0.875rem;
-  text-transform: capitalize;
-  color: var(--color-text);
+  opacity: 0.8;
 }
 </style>

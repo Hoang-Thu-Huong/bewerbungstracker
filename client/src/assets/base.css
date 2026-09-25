@@ -34,6 +34,18 @@
   --color-text: var(--vt-c-text-light-1);
 
   --section-gap: 160px;
+
+  /* Status-Farben für StatusBadge (Kontrast Text/Hintergrund > 4.5:1) */
+  --status-gespeichert-bg: #e5e7eb;
+  --status-gespeichert-text: #374151;
+  --status-beworben-bg: #dbeafe;
+  --status-beworben-text: #1e40af;
+  --status-interview-bg: #ffedd5;
+  --status-interview-text: #9a3412;
+  --status-zusage-bg: #dcfce7;
+  --status-zusage-text: #166534;
+  --status-absage-bg: #fee2e2;
+  --status-absage-text: #991b1b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,6 +59,17 @@
 
     --color-heading: var(--vt-c-text-dark-1);
     --color-text: var(--vt-c-text-dark-2);
+
+    --status-gespeichert-bg: #374151;
+    --status-gespeichert-text: #e5e7eb;
+    --status-beworben-bg: #1e3a8a;
+    --status-beworben-text: #dbeafe;
+    --status-interview-bg: #7c2d12;
+    --status-interview-text: #ffedd5;
+    --status-zusage-bg: #14532d;
+    --status-zusage-text: #dcfce7;
+    --status-absage-bg: #7f1d1d;
+    --status-absage-text: #fee2e2;
   }
 }
 

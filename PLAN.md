@@ -319,6 +319,8 @@ Vuejs-Projekt/
 | 2026-09-25 | Persist bằng `watch(applications, save, { deep: true })` → `localStorage` | Một chỗ duy nhất lo việc lưu; action không phải nhớ gọi `save()` | Gọi `save()` cuối mỗi action; plugin `pinia-plugin-persistedstate` (không thêm package ở MVP) |
 | 2026-09-25 | `id` là string UUID (`crypto.randomUUID()`), seed dùng `'seed-1'`… | Không cần tính max id, không trùng khi merge với backend, khớp kiểu với route param `:id` | Số tăng dần |
 | 2026-09-25 | `gehaltMin`/`gehaltMax` luôn là Jahresbrutto (€/năm) | So sánh lương giữa các job cần cùng đơn vị | Lưu thêm field `gehaltIntervall` (Monat/Jahr) |
+| 2026-09-25 | Logic lọc/tìm kiếm là **hàm thuần** `utils/filterApplications.js`, `HomeView` chỉ gọi trong `computed` | Test bằng Vitest không cần `mount`/Pinia; tái dùng được khi có backend | Getter trong Pinia store (nhưng state lọc chỉ thuộc về view); lọc trực tiếp trong template |
+| 2026-09-25 | `FilterBar` dùng `defineModel('query')`/`defineModel('status')` – state lọc nằm ở `HomeView`, không vào store | Component lọc không giữ state riêng ("controlled"), không cần persist filter | `defineProps` + `defineEmits('update:…')` viết tay; giữ `query`/`status` trong store |
 
 ---
 

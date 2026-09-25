@@ -221,3 +221,113 @@ watch(applications, saveToStorage, { deep: true, immediate: true })
 - Cách khác: gọi `saveToStorage(applications.value)` bằng tay ngay sau khi tạo `ref`, hoặc dùng `watchEffect` (tự chạy ngay và tự theo dõi dependency). Chọn `immediate` vì vẫn giữ một `watch` duy nhất, rõ ràng source là gì.
 - Bài học: test nên có một case "chỉ khởi tạo store, không gọi action" – bug này lọt qua vì mọi test persistence trước đó đều gọi add/update trước khi đọc localStorage.
 - Docs: https://vuejs.org/guide/essentials/watchers.html#eager-watchers · https://vuejs.org/api/reactivity-core.html#watch
+
+---
+
+## Task 3 – Listenansicht với `StatusBadge`, lọc theo Status và tìm kiếm
+
+**File:** `client/src/App.vue`, `client/src/assets/main.css`, `client/src/assets/base.css`, `client/src/views/HomeView.vue`, `client/src/components/StatusBadge.vue`, `client/src/components/FilterBar.vue`, `client/src/components/ApplicationList.vue`, `client/src/utils/filterApplications.js`, `client/src/utils/__tests__/filterApplications.spec.js`, `client/src/components/__tests__/StatusBadge.spec.js`
+**Commit:** `feat: list view with status filter and search`
+
+### Đã làm gì
+
+- Dọn `App.vue`: bỏ logo Vue + `HelloWorld`, thay bằng header đơn giản (tiêu đề "Bewerbungstracker" + nav Home/About). Xoá grid 2 cột của create-vue trong `main.css` (`#app { display: grid }` từ 1024px) → nội dung căn giữa, `max-width: 900px`.
+- Xoá các file scaffold không còn ai import: `HelloWorld.vue`, `TheWelcome.vue`, `WelcomeItem.vue`, `icons/`, `logo.svg` và test `HelloWorld.spec.js`. Kiểm tra bằng `grep -r "HelloWorld\|TheWelcome" src` trước khi xoá.
+- Tách list thành 3 component nhỏ: `StatusBadge` (pill màu theo status), `FilterBar` (ô tìm kiếm + select status), `ApplicationList` (render list hoặc empty state).
+- Logic lọc nằm trong **hàm thuần** `filterApplications(applications, { query, status })` – không phụ thuộc Vue, test riêng bằng Vitest (9 case).
+- `HomeView.vue` chỉ còn "dây nối": lấy data từ store, giữ `query`/`status` bằng `ref`, tính list đã lọc bằng `computed`, hiển thị "X von Y Bewerbungen".
+
+### Khái niệm đã dùng
+
+#### 1. Props với `validator` (`StatusBadge.vue`)
+
+```js
+defineProps({
+  status: { type: String, required: true, validator: (value) => STATUSES.includes(value) },
+})
+```
+
+- `validator` là hàm nhận giá trị prop, trả `true`/`false`. Nếu `false`, Vue chỉ **cảnh báo trong console ở dev mode** – không throw, không chặn render. Mục đích là bắt lỗi chính tả (`'bewerben'` thay vì `'beworben'`) sớm khi đang phát triển.
+- `STATUSES` import từ `@/stores/applications` – đây là **named export** (một mảng thường), import nó **không** tạo store. Vì thế component nhỏ như badge không cần Pinia mới test được.
+- Docs: https://vuejs.org/guide/components/props.html#prop-validation
+
+#### 2. `defineModel` – `v-model` trên component (`FilterBar.vue` ↔ `HomeView.vue`)
+
+```js
+// FilterBar.vue
+const query = defineModel('query', { type: String, default: '' })
+const status = defineModel('status', { type: String, default: 'alle' })
+```
+
+```html
+<!-- HomeView.vue -->
+<FilterBar v-model:query="query" v-model:status="status" />
+```
+
+- `defineModel` (Vue ≥ 3.4) là macro của `<script setup>`: mỗi lần gọi Vue tự tạo một **prop** (`query`) + một **event** (`update:query`) và trả về một `ref` có thể ghi. Trong template con chỉ cần `v-model="query"` trên `<input>` như ref bình thường – khi input đổi, Vue emit `update:query` lên cha.
+- Có tên (`'query'`, `'status'`) → cha bind được **hai** `v-model` riêng biệt (`v-model:query`, `v-model:status`). Không có tên thì chỉ có một `modelValue`.
+- Ý nghĩa: **source of truth vẫn nằm ở cha** (`HomeView`). `FilterBar` không giữ state riêng, chỉ là "cái điều khiển" – nên `HomeView` có thể dùng `query` cho `computed` mà không cần emit thủ công.
+- Trước Vue 3.4 phải viết tay: `defineProps({ query })` + `defineEmits(['update:query'])` + `@input="emit('update:query', $event.target.value)"`. `defineModel` gói lại đúng pattern đó.
+- Docs: https://vuejs.org/guide/components/v-model.html · https://vuejs.org/api/sfc-script-setup.html#definemodel
+
+#### 3. `computed` vs. method (`HomeView.vue`)
+
+```js
+const filteredApplications = computed(() =>
+  filterApplications(applications.value, { query: query.value, status: status.value }),
+)
+```
+
+- Cả `computed` lẫn một method `getFiltered()` gọi trong template đều cho ra kết quả giống nhau. Khác biệt: `computed` **cache** kết quả và chỉ tính lại khi một dependency (`applications`, `query`, `status`) đổi. Method thì chạy lại **mỗi lần re-render**, kể cả khi thứ đổi không liên quan.
+- Vue tự biết dependency vì trong lúc chạy hàm, mỗi `.value` được đọc đều được ghi nhận (dependency tracking).
+- Quy tắc: cần *giá trị dẫn xuất từ state* → `computed`. Cần *hành động* (click, submit) → function.
+- Docs: https://vuejs.org/guide/essentials/computed.html#computed-caching-vs-methods
+
+#### 4. `v-if` / `v-else` cho empty state (`ApplicationList.vue`)
+
+```html
+<p v-if="applications.length === 0" class="empty">Keine Bewerbungen gefunden.</p>
+<ul v-else class="application-list">…</ul>
+```
+
+- `v-if` **không render** phần tử vào DOM khi điều kiện sai (khác `v-show` chỉ ẩn bằng CSS). `v-else` phải đứng **ngay sau** phần tử có `v-if`.
+- Dùng `v-if` ở đây vì list và empty state loại trừ nhau và không đổi qua lại liên tục – không cần tối ưu bằng `v-show`.
+- Docs: https://vuejs.org/guide/essentials/conditional.html
+
+#### 5. Logic lọc là hàm thuần (`utils/filterApplications.js`)
+
+```js
+export function filterApplications(applications, { query = '', status = 'alle' } = {}) {
+  const q = query.trim().toLowerCase()
+  return applications.filter(/* … */)
+}
+```
+
+- **Hàm thuần** = cùng input → cùng output, không đọc/ghi gì bên ngoài (không store, không DOM). Nhờ vậy test chỉ cần `import` + gọi hàm + `expect` – không `mount`, không Pinia, chạy trong vài ms.
+- `Array.prototype.filter` luôn trả **mảng mới**, mảng gốc không đổi → `HomeView` không vô tình sửa data trong store. Test "does not mutate the input array" kiểm tra đúng điều này (`expect(applications).toEqual(copy)`).
+- `String(application[field] ?? '')` – phòng trường hợp field thiếu (`ort` có thể `undefined`), tránh lỗi `undefined.toLowerCase()`.
+- Docs: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter · https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing · https://vitest.dev/guide/
+
+#### 6. Test component với `mount` từ `@vue/test-utils` (`StatusBadge.spec.js`)
+
+```js
+const wrapper = mount(StatusBadge, { props: { status: 'zusage' } })
+expect(wrapper.text()).toBe('zusage')
+expect(wrapper.classes()).toContain('status-badge--zusage')
+```
+
+- `mount` render component thật vào jsdom và trả về `wrapper`. `wrapper.text()` đọc text, `wrapper.classes()` đọc class trên root element, `wrapper.find('…')` để đi sâu hơn.
+- `it.each(STATUSES)('renders every status (%s)', …)` – Vitest chạy cùng một test cho từng phần tử của mảng; `%s` được thay bằng giá trị. Nếu thêm status mới vào `STATUSES`, test tự mở rộng.
+- Docs: https://test-utils.vuejs.org/guide/ · https://test-utils.vuejs.org/api/#mount · https://vitest.dev/api/#test-each
+
+#### 7. CSS Custom Properties + dark mode (`base.css`, `StatusBadge.vue`)
+
+- Màu của badge (`--status-zusage-bg`, `--status-zusage-text`, …) khai báo một lần trong `:root` của `base.css`, và ghi đè trong `@media (prefers-color-scheme: dark)`. Component chỉ dùng `var(--status-zusage-bg)` → đổi màu ở một chỗ, tự hợp cả sáng lẫn tối.
+- Chọn cặp màu nền nhạt / chữ đậm (và ngược lại cho dark) để tỉ lệ tương phản > 4.5:1 (WCAG AA).
+- Docs: https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties · https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme
+
+### Ghi chú
+
+- Thứ tự làm việc: viết test cho `filterApplications` và `StatusBadge` **trước**, chạy thấy đỏ, rồi mới viết code (TDD). Test đỏ lúc đầu chứng minh test thật sự kiểm tra thứ gì đó.
+- State lọc (`query`, `status`) để trong `HomeView`, không đưa vào store: nó chỉ có ý nghĩa ở trang này và không cần lưu vào `localStorage`.
+- `<form @submit.prevent>` trong `FilterBar` để nhấn Enter trong ô search không reload trang.
