@@ -323,8 +323,8 @@ Vuejs-Projekt/
 
 | Ngày | Vấn đề / Điều học được | Cách giải quyết | Nguồn tham khảo |
 |---|---|---|---|
-| ✏️ | | | |
 
+ERESOLVE eslint@undefined → nguyên nhân: cache ~/.npm có file thuộc root → sửa bằng chown
 ---
 
 ## 15. Câu hỏi còn mở
