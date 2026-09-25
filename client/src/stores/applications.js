@@ -34,7 +34,9 @@ export const useApplicationsStore = defineStore('applications', () => {
 
   // deep: true, damit auch Änderungen an einzelnen Feldern (z. B. status) gespeichert werden,
   // nicht nur das Ersetzen des ganzen Arrays.
-  watch(applications, saveToStorage, { deep: true })
+  // immediate: true, weil watch sonst lazy ist: beim ersten Start (leerer localStorage)
+  // würde der Key erst nach der ersten Änderung angelegt.
+  watch(applications, saveToStorage, { deep: true, immediate: true })
 
   function addApplication(data) {
     const now = new Date().toISOString()

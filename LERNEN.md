@@ -199,3 +199,25 @@ beforeEach(() => {
 
 - Vì `watch` chạy bất đồng bộ, việc lưu vào `localStorage` xảy ra **sau** action một tick. Trong app thật không nhận ra, nhưng nếu sau này có `location.reload()` ngay trong action thì phải chú ý.
 - `removeApplication` dùng `filter` (tạo mảng mới, gán lại `.value`) thay cho `splice` – dễ đọc hơn và vẫn được `watch` bắt (gán lại `.value` luôn kích hoạt watcher).
+
+---
+
+## Bugfix – `watch` là lazy → `immediate: true`
+
+**File:** `client/src/stores/applications.js`, `client/src/stores/__tests__/applications.spec.js`
+**Commit:** `fix: persist seed data on first start`
+
+### Vấn đề
+
+Khi mở app lần đầu (localStorage trống), key `bewerbungstracker.applications` **không được tạo**. Store hiển thị đúng 3 seed, nhưng chỉ khi gọi add/update/remove lần đầu thì dữ liệu mới được ghi. Nguyên nhân: `watch()` mặc định là **lazy** – callback chỉ chạy khi source **thay đổi**, không chạy với giá trị ban đầu.
+
+### Cách sửa
+
+```js
+watch(applications, saveToStorage, { deep: true, immediate: true })
+```
+
+- `immediate: true` → callback chạy **ngay lập tức, đồng bộ** khi watcher được tạo (với giá trị hiện tại), sau đó tiếp tục chạy mỗi khi có thay đổi như bình thường. Vì thế test mới không cần `await nextTick()`.
+- Cách khác: gọi `saveToStorage(applications.value)` bằng tay ngay sau khi tạo `ref`, hoặc dùng `watchEffect` (tự chạy ngay và tự theo dõi dependency). Chọn `immediate` vì vẫn giữ một `watch` duy nhất, rõ ràng source là gì.
+- Bài học: test nên có một case "chỉ khởi tạo store, không gọi action" – bug này lọt qua vì mọi test persistence trước đó đều gọi add/update trước khi đọc localStorage.
+- Docs: https://vuejs.org/guide/essentials/watchers.html#eager-watchers · https://vuejs.org/api/reactivity-core.html#watch

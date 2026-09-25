@@ -123,6 +123,17 @@ describe('applications store', () => {
     expect(store.getApplicationById('seed-1')).toBeDefined()
   })
 
+  it('speichert die Seed-Daten beim ersten Start in localStorage', () => {
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+
+    useApplicationsStore()
+
+    // immediate: true → Watcher läuft sofort synchron, kein nextTick nötig
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY))
+    expect(stored).toHaveLength(3)
+    expect(stored.map((a) => a.id)).toEqual(['seed-1', 'seed-2', 'seed-3'])
+  })
+
   it('persists to localStorage after addApplication', async () => {
     const store = useApplicationsStore()
     const created = store.addApplication({ company: 'Persist GmbH', position: 'Dev' })
